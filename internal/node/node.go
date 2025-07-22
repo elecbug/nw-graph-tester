@@ -6,25 +6,29 @@ import (
 	"time"
 )
 
+type NodeID uint64
+type MessageID uint64
+
 type Node struct {
-	ID           uint64
+	ID           NodeID
 	Connections  map[*Node]int64
 	NodeDelay    int64
-	RelayMap     map[uint64]time.Time
-	DuplicateMap map[uint64]uint64 // For tracking duplicates
+	RelayMap     map[MessageID]time.Time
+	DuplicateMap map[MessageID][]NodeID // For tracking duplicates
 	Mu           sync.RWMutex
 }
 
-func (n *Node) Relay(relayNumber uint64, from *Node) {
+func (n *Node) Relay(relayNumber MessageID, from *Node) {
 	go func() {
 		n.Mu.Lock()
 
 		if _, ok := n.RelayMap[relayNumber]; ok {
-			n.DuplicateMap[relayNumber] += 1 // Increment duplicate count
+			n.DuplicateMap[relayNumber] = append(n.DuplicateMap[relayNumber], from.ID) // Track duplicate sender
 			n.Mu.Unlock()
 			return
 		} else {
 			n.RelayMap[relayNumber] = time.Now()
+			n.DuplicateMap[relayNumber] = []NodeID{} // Reset duplicates for this relay
 			n.Mu.Unlock()
 		}
 
@@ -35,6 +39,10 @@ func (n *Node) Relay(relayNumber uint64, from *Node) {
 				continue // Skip excluded node
 			}
 
+			if n.check(relayNumber, conn) {
+				continue
+			}
+
 			go func(conn *Node, delay int64) {
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 
@@ -42,6 +50,19 @@ func (n *Node) Relay(relayNumber uint64, from *Node) {
 			}(conn, delay)
 		}
 	}()
+}
+
+func (n *Node) check(relayNumber MessageID, conn *Node) bool {
+	n.Mu.RLock()
+	defer n.Mu.RUnlock()
+
+	for _, dupID := range n.DuplicateMap[relayNumber] {
+		if dupID == conn.ID {
+			return true // Skip if this node has already relayed this message
+		}
+	}
+
+	return false
 }
 
 func (n *Node) PrintRelayState() {
