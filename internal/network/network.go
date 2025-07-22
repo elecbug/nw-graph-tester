@@ -13,15 +13,25 @@ type Network struct {
 	delayLog10 int64
 }
 
-func GenerateRandomNetwork(nodeCount int, edgeCount int, maxNodeDelay int64, maxLinkDelay int64) *Network {
-	nodes := make([]node.Node, nodeCount)
-	delayLog10 := getDelayLog10(max(maxNodeDelay, maxLinkDelay))
+type NetworkConfig struct {
+	NodeCount    int
+	EdgeCount    int
+	MaxNodeDelay int64
+	MaxLinkDelay int64
+	D            int // Gossip sub parameters
+	DLow         int // Gossip sub parameters
+	DHigh        int // Gossip sub parameters
+}
 
-	for i := 0; i < nodeCount; i++ {
+func GenerateRandomNetwork(config NetworkConfig) *Network {
+	nodes := make([]node.Node, config.NodeCount)
+	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
+
+	for i := 0; i < config.NodeCount; i++ {
 		nodes[i] = node.Node{
 			ID:           node.NodeID(i),
 			Connections:  make(map[*node.Node]int64),
-			NodeDelay:    rand.Int63n(maxNodeDelay),
+			NodeDelay:    rand.Int63n(config.MaxNodeDelay),
 			RelayMap:     make(map[node.MessageID]time.Time),
 			DuplicateMap: make(map[node.MessageID][]node.NodeID),
 		}
@@ -32,8 +42,8 @@ func GenerateRandomNetwork(nodeCount int, edgeCount int, maxNodeDelay int64, max
 		delayLog10: delayLog10,
 	}
 
-	for i := 0; i < edgeCount; i++ {
-		if !network.makeRandomConnection(maxLinkDelay) {
+	for i := 0; i < config.EdgeCount; i++ {
+		if !network.makeRandomConnection(config.MaxLinkDelay) {
 			i-- // Retry if connection could not be made
 		}
 	}
@@ -41,15 +51,15 @@ func GenerateRandomNetwork(nodeCount int, edgeCount int, maxNodeDelay int64, max
 	return network
 }
 
-func GenerateGossipSubNetwork(nodeCount int, d, dLow, dHigh int, maxNodeDelay int64, maxLinkDelay int64) *Network {
-	nodes := make([]node.Node, nodeCount)
-	delayLog10 := getDelayLog10(max(maxNodeDelay, maxLinkDelay))
+func GenerateGossipSubNetwork(config NetworkConfig) *Network {
+	nodes := make([]node.Node, config.NodeCount)
+	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
-	for i := 0; i < nodeCount; i++ {
+	for i := 0; i < config.NodeCount; i++ {
 		nodes[i] = node.Node{
 			ID:           node.NodeID(i),
 			Connections:  make(map[*node.Node]int64),
-			NodeDelay:    rand.Int63n(maxNodeDelay),
+			NodeDelay:    rand.Int63n(config.MaxNodeDelay),
 			RelayMap:     make(map[node.MessageID]time.Time),
 			DuplicateMap: make(map[node.MessageID][]node.NodeID),
 		}
@@ -60,37 +70,37 @@ func GenerateGossipSubNetwork(nodeCount int, d, dLow, dHigh int, maxNodeDelay in
 		delayLog10: delayLog10,
 	}
 
-	for i := 0; i < nodeCount; i++ {
+	for i := 0; i < config.NodeCount; i++ {
 		d := 0
 
 		for {
-			for j := 0; j < dHigh; j++ {
-				if network.makeRandomConnection(maxLinkDelay) {
+			for j := 0; j < config.DHigh; j++ {
+				if network.makeRandomConnection(config.MaxLinkDelay) {
 					d++
 				}
 
-				if d > dHigh {
+				if d > config.DHigh {
 					break
 				}
 			}
 
-			if d > dLow {
+			if d > config.DLow {
 				break
 			}
 		}
 	}
 
 	for re := 0; re < 100; re++ {
-		for i := 0; i < nodeCount; i++ {
-			if len(network.Nodes[i].Connections) > dHigh {
-				for j := 0; j < len(network.Nodes[i].Connections)-d; j++ {
+		for i := 0; i < config.NodeCount; i++ {
+			if len(network.Nodes[i].Connections) > config.DHigh {
+				for j := 0; j < len(network.Nodes[i].Connections)-config.D; j++ {
 					network.removeConnection(uint64(i), rand.Uint64()%uint64(len(network.Nodes)))
 				}
 			}
 
-			if len(network.Nodes[i].Connections) < dLow {
-				for j := 0; j < d-len(network.Nodes[i].Connections); j++ {
-					if !network.makeRandomConnection(maxLinkDelay) {
+			if len(network.Nodes[i].Connections) < config.DLow {
+				for j := 0; j < config.D-len(network.Nodes[i].Connections); j++ {
+					if !network.makeRandomConnection(config.MaxLinkDelay) {
 						j-- // Retry if connection could not be made
 					}
 				}

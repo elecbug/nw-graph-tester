@@ -8,14 +8,22 @@ import (
 )
 
 func main() {
-	n := network.GenerateGossipSubNetwork(51, 6, 5, 12, 6000, 100)
+	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
+		NodeCount:    51,
+		D:            6,
+		DLow:         5,
+		DHigh:        12,
+		MaxNodeDelay: 6000,
+		MaxLinkDelay: 100,
+	})
+
 	if n == nil {
 		fmt.Println("Failed to generate network")
 		return
 	}
 	n.Print()
 
-	n.Nodes[0].Relay(1, nil)
+	n.Nodes[0].Broadcast(1)
 
 	time.Sleep(time.Second * 20)
 

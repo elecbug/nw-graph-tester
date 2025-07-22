@@ -18,17 +18,42 @@ type Node struct {
 	Mu           sync.RWMutex
 }
 
-func (n *Node) Relay(relayNumber MessageID, from *Node) {
+func (n *Node) Broadcast(messageID MessageID) {
 	go func() {
 		n.Mu.Lock()
 
-		if _, ok := n.RelayMap[relayNumber]; ok {
-			n.DuplicateMap[relayNumber] = append(n.DuplicateMap[relayNumber], from.ID) // Track duplicate sender
+		n.RelayMap[messageID] = time.Now()
+		n.DuplicateMap[messageID] = []NodeID{} // Reset duplicates for this relay
+
+		n.Mu.Unlock()
+
+		time.Sleep(time.Duration(n.NodeDelay) * time.Millisecond)
+
+		for conn, delay := range n.Connections {
+			if n.check(messageID, conn) {
+				continue
+			}
+
+			go func(conn *Node, delay int64) {
+				time.Sleep(time.Duration(delay) * time.Millisecond)
+
+				conn.relay(messageID, n)
+			}(conn, delay)
+		}
+	}()
+}
+
+func (n *Node) relay(messageID MessageID, from *Node) {
+	go func() {
+		n.Mu.Lock()
+
+		if _, ok := n.RelayMap[messageID]; ok {
+			n.DuplicateMap[messageID] = append(n.DuplicateMap[messageID], from.ID) // Track duplicate sender
 			n.Mu.Unlock()
 			return
 		} else {
-			n.RelayMap[relayNumber] = time.Now()
-			n.DuplicateMap[relayNumber] = []NodeID{} // Reset duplicates for this relay
+			n.RelayMap[messageID] = time.Now()
+			n.DuplicateMap[messageID] = []NodeID{} // Reset duplicates for this relay
 			n.Mu.Unlock()
 		}
 
@@ -39,14 +64,14 @@ func (n *Node) Relay(relayNumber MessageID, from *Node) {
 				continue // Skip excluded node
 			}
 
-			if n.check(relayNumber, conn) {
+			if n.check(messageID, conn) {
 				continue
 			}
 
 			go func(conn *Node, delay int64) {
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 
-				conn.Relay(relayNumber, n)
+				conn.relay(messageID, n)
 			}(conn, delay)
 		}
 	}()
