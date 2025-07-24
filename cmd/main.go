@@ -10,12 +10,12 @@ import (
 
 func main() {
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
-		NodeCount:    40000,
+		NodeCount:    400,
 		DLow:         8,
 		D:            10,
 		DHigh:        12,
-		MaxNodeDelay: 1,
-		MaxLinkDelay: 1,
+		MaxNodeDelay: 100,
+		MaxLinkDelay: 100,
 	})
 
 	if n == nil {
@@ -26,7 +26,7 @@ func main() {
 
 	n.Nodes[0].Broadcast(1, p2p.BasicPublish)
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 20)
 
 	sum := 0
 	for i := range n.Nodes {
@@ -36,4 +36,5 @@ func main() {
 	}
 
 	fmt.Printf("Total average duplicates for relay 1: %f\n", float64(sum)/float64(len(n.Nodes)-1)-1)
+	n.PrintPropagationTree(1)
 }
