@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/elecbug/nw-graph-tester/internal/network"
+	"github.com/elecbug/p2p-broadcast-tester/internal/network"
+	"github.com/elecbug/p2p-broadcast-tester/internal/p2p"
 )
 
 func main() {
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
-		NodeCount:    51,
+		NodeCount:    1000,
 		D:            6,
 		DLow:         5,
 		DHigh:        12,
-		MaxNodeDelay: 6000,
+		MaxNodeDelay: 500,
 		MaxLinkDelay: 100,
 	})
 
@@ -23,16 +24,16 @@ func main() {
 	}
 	n.Print()
 
-	n.Nodes[0].Broadcast(1)
+	n.Nodes[0].Broadcast(1, p2p.BasicPublish)
 
 	time.Sleep(time.Second * 20)
 
 	sum := 0
 	for i := range n.Nodes {
-		sum += len(n.Nodes[i].DuplicateMap[1])
+		sum += len(n.Nodes[i].ReceiveRoute(1))
 		n.Nodes[i].PrintRelayState()
-		fmt.Printf("> Degree - DuplicateMsg = %d\n", len(n.Nodes[i].Connections)-len(n.Nodes[i].DuplicateMap[1]))
+		fmt.Printf("> Degree - Receving Count = %d\n", len(n.Nodes[i].Connections())-len(n.Nodes[i].ReceiveRoute(1)))
 	}
 
-	fmt.Printf("Total average duplicates for relay 1: %f\n", float64(sum)/float64(len(n.Nodes)-1))
+	fmt.Printf("Total average duplicates for relay 1: %f\n", float64(sum)/float64(len(n.Nodes)-1)-1)
 }

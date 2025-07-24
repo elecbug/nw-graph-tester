@@ -3,9 +3,9 @@ package network
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
-	"github.com/elecbug/nw-graph-tester/internal/node"
+	"github.com/elecbug/p2p-broadcast-tester/internal/node"
+	"github.com/elecbug/p2p-broadcast-tester/internal/p2p"
 )
 
 type Network struct {
@@ -16,8 +16,8 @@ type Network struct {
 type NetworkConfig struct {
 	NodeCount    int
 	EdgeCount    int
-	MaxNodeDelay int64
-	MaxLinkDelay int64
+	MaxNodeDelay p2p.Delay
+	MaxLinkDelay p2p.Delay
 	D            int // Gossip sub parameters
 	DLow         int // Gossip sub parameters
 	DHigh        int // Gossip sub parameters
@@ -28,13 +28,7 @@ func GenerateRandomNetwork(config NetworkConfig) *Network {
 	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
 	for i := 0; i < config.NodeCount; i++ {
-		nodes[i] = node.Node{
-			ID:           node.NodeID(i),
-			Connections:  make(map[*node.Node]int64),
-			NodeDelay:    rand.Int63n(config.MaxNodeDelay),
-			RelayMap:     make(map[node.MessageID]time.Time),
-			DuplicateMap: make(map[node.MessageID][]node.NodeID),
-		}
+		nodes[i] = *node.NewNode(p2p.NodeID(i), p2p.Delay(rand.Uint64()%uint64(config.MaxNodeDelay)))
 	}
 
 	network := &Network{
@@ -56,13 +50,7 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
 	for i := 0; i < config.NodeCount; i++ {
-		nodes[i] = node.Node{
-			ID:           node.NodeID(i),
-			Connections:  make(map[*node.Node]int64),
-			NodeDelay:    rand.Int63n(config.MaxNodeDelay),
-			RelayMap:     make(map[node.MessageID]time.Time),
-			DuplicateMap: make(map[node.MessageID][]node.NodeID),
-		}
+		nodes[i] = *node.NewNode(p2p.NodeID(i), p2p.Delay(rand.Uint64()%uint64(config.MaxNodeDelay)))
 	}
 
 	network := &Network{
@@ -92,14 +80,14 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 
 	for re := 0; re < 100; re++ {
 		for i := 0; i < config.NodeCount; i++ {
-			if len(network.Nodes[i].Connections) > config.DHigh {
-				for j := 0; j < len(network.Nodes[i].Connections)-config.D; j++ {
-					network.removeConnection(uint64(i), rand.Uint64()%uint64(len(network.Nodes)))
+			if len(network.Nodes[i].Connections()) > config.DHigh {
+				for j := 0; j < len(network.Nodes[i].Connections())-config.D; j++ {
+					network.RemoveConnection(uint64(i), rand.Uint64()%uint64(len(network.Nodes)))
 				}
 			}
 
-			if len(network.Nodes[i].Connections) < config.DLow {
-				for j := 0; j < config.D-len(network.Nodes[i].Connections); j++ {
+			if len(network.Nodes[i].Connections()) < config.DLow {
+				for j := 0; j < config.D-len(network.Nodes[i].Connections()); j++ {
 					if !network.makeRandomConnection(config.MaxLinkDelay) {
 						j-- // Retry if connection could not be made
 					}
@@ -111,7 +99,7 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	return network
 }
 
-func getDelayLog10(delay int64) int64 {
+func getDelayLog10(delay p2p.Delay) int64 {
 	if delay <= 0 {
 		return 0
 	}
@@ -125,7 +113,7 @@ func getDelayLog10(delay int64) int64 {
 	return log10
 }
 
-func (n *Network) makeRandomConnection(maxLinkDelay int64) bool {
+func (n *Network) makeRandomConnection(maxLinkDelay p2p.Delay) bool {
 	if len(n.Nodes) < 2 {
 		return false // Not enough nodes to make a connection
 	}
@@ -137,33 +125,52 @@ func (n *Network) makeRandomConnection(maxLinkDelay int64) bool {
 		nodeB = rand.Uint64() % uint64(len(n.Nodes))
 	}
 
-	if _, ok := n.Nodes[nodeA].Connections[&n.Nodes[nodeB]]; ok {
+	if _, ok := n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]]; ok {
 		return false // Connection already exists
 	}
 
-	linkDelay := rand.Int63n(maxLinkDelay)
+	linkDelay := p2p.Delay(rand.Uint64() % uint64(maxLinkDelay))
 
-	n.addConnection(nodeA, nodeB, linkDelay)
+	n.AddBidirectConnection(nodeA, nodeB, linkDelay)
 
 	return true
 }
 
-func (n *Network) addConnection(nodeA uint64, nodeB uint64, linkDelay int64) {
+func (n *Network) AddBidirectConnection(nodeA uint64, nodeB uint64, linkDelay p2p.Delay) {
 	if nodeA >= uint64(len(n.Nodes)) || nodeB >= uint64(len(n.Nodes)) {
 		return // Invalid node IDs
 	}
 
-	n.Nodes[nodeA].Connections[&n.Nodes[nodeB]] = linkDelay
-	n.Nodes[nodeB].Connections[&n.Nodes[nodeA]] = linkDelay
+	if _, ok1 := n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]]; ok1 {
+		return // Connection already exists
+	}
+	if _, ok2 := n.Nodes[nodeB].Connections()[&n.Nodes[nodeA]]; ok2 {
+		return // Connection already exists
+	}
+
+	n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]] = linkDelay
+	n.Nodes[nodeB].Connections()[&n.Nodes[nodeA]] = linkDelay
 }
 
-func (n *Network) removeConnection(nodeA uint64, nodeB uint64) {
+func (n *Network) AddConnection(nodeA uint64, nodeB uint64, linkDelay p2p.Delay) {
 	if nodeA >= uint64(len(n.Nodes)) || nodeB >= uint64(len(n.Nodes)) {
 		return // Invalid node IDs
 	}
 
-	delete(n.Nodes[nodeA].Connections, &n.Nodes[nodeB])
-	delete(n.Nodes[nodeB].Connections, &n.Nodes[nodeA])
+	if _, ok := n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]]; ok {
+		return // Connection already exists
+	}
+
+	n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]] = linkDelay
+}
+
+func (n *Network) RemoveConnection(nodeA uint64, nodeB uint64) {
+	if nodeA >= uint64(len(n.Nodes)) || nodeB >= uint64(len(n.Nodes)) {
+		return // Invalid node IDs
+	}
+
+	delete(n.Nodes[nodeA].Connections(), &n.Nodes[nodeB])
+	delete(n.Nodes[nodeB].Connections(), &n.Nodes[nodeA])
 }
 
 func (n *Network) Print() {
@@ -172,15 +179,15 @@ func (n *Network) Print() {
 
 		connections := "["
 		i := 0
-		for connNode, delay := range node.Connections {
-			connections += fmt.Sprintf("%d(%dms)", connNode.ID, delay)
-			if i != len(node.Connections)-1 {
+		for connNode, delay := range node.Connections() {
+			connections += fmt.Sprintf("%d(%dms)", connNode.ID(), delay)
+			if i != len(node.Connections())-1 {
 				connections += ", "
 			}
 			i++
 		}
 		connections += "]"
 
-		fmt.Printf("Node ID: %d, Delay: %d, Connections: %d %s\n", node.ID, node.NodeDelay, len(node.Connections), connections)
+		fmt.Printf("Node ID: %d, Delay: %d, Connections: %d %s\n", node.ID(), node.Delay(), len(node.Connections()), connections)
 	}
 }
