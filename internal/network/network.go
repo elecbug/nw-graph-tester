@@ -66,19 +66,24 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 		}
 
 		for i := 0; i < config.NodeCount; i++ {
-			if len(network.Nodes[i].Connections()) > config.DHigh {
-				for j := 0; j < len(network.Nodes[i].Connections())-config.D; j++ {
-					network.RemoveConnection(uint64(i), rand.Uint64()%uint64(len(network.Nodes)))
-					flag = true
-				}
-			}
-
 			if len(network.Nodes[i].Connections()) < config.DLow {
 				for j := 0; j < config.D-len(network.Nodes[i].Connections()); j++ {
-					if !network.makeRandomConnection(config.MaxLinkDelay) {
+					target := rand.Uint64() % uint64(len(network.Nodes))
+					delay := p2p.Delay(rand.Uint64() % uint64(config.MaxLinkDelay))
+
+					if !network.AddBidirectConnection(uint64(i), target, delay) {
 						j-- // Retry if connection could not be made
 						flag = true
 					}
+				}
+			}
+
+			if len(network.Nodes[i].Connections()) > config.DHigh {
+				for j := 0; j < len(network.Nodes[i].Connections())-config.D; j++ {
+					target := rand.Uint64() % uint64(len(network.Nodes))
+
+					network.RemoveConnection(uint64(i), target)
+					flag = true
 				}
 			}
 		}
@@ -128,20 +133,22 @@ func (n *Network) makeRandomConnection(maxLinkDelay p2p.Delay) bool {
 	return true
 }
 
-func (n *Network) AddBidirectConnection(nodeA uint64, nodeB uint64, linkDelay p2p.Delay) {
+func (n *Network) AddBidirectConnection(nodeA uint64, nodeB uint64, linkDelay p2p.Delay) bool {
 	if nodeA >= uint64(len(n.Nodes)) || nodeB >= uint64(len(n.Nodes)) {
-		return // Invalid node IDs
+		return false // Invalid node IDs
 	}
 
 	if _, ok1 := n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]]; ok1 {
-		return // Connection already exists
+		return false // Connection already exists
 	}
 	if _, ok2 := n.Nodes[nodeB].Connections()[&n.Nodes[nodeA]]; ok2 {
-		return // Connection already exists
+		return false // Connection already exists
 	}
 
 	n.Nodes[nodeA].Connections()[&n.Nodes[nodeB]] = linkDelay
 	n.Nodes[nodeB].Connections()[&n.Nodes[nodeA]] = linkDelay
+
+	return true
 }
 
 func (n *Network) AddConnection(nodeA uint64, nodeB uint64, linkDelay p2p.Delay) {

@@ -11,8 +11,8 @@ import (
 func main() {
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
 		NodeCount:    40000,
-		D:            6,
-		DLow:         5,
+		DLow:         8,
+		D:            10,
 		DHigh:        12,
 		MaxNodeDelay: 1000,
 		MaxLinkDelay: 100,
