@@ -58,31 +58,18 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 		delayLog10: delayLog10,
 	}
 
-	for i := 0; i < config.NodeCount; i++ {
-		d := 0
+	for re := 0; re < config.NodeCount; re++ {
+		flag := false
 
-		for {
-			for j := 0; j < config.DHigh; j++ {
-				if network.makeRandomConnection(config.MaxLinkDelay) {
-					d++
-				}
-
-				if d > config.DHigh {
-					break
-				}
-			}
-
-			if d > config.DLow {
-				break
-			}
+		if re%100 == 0 {
+			fmt.Printf("Generating connections for node %d/%d\n", re+1, config.NodeCount)
 		}
-	}
 
-	for re := 0; re < 100; re++ {
 		for i := 0; i < config.NodeCount; i++ {
 			if len(network.Nodes[i].Connections()) > config.DHigh {
 				for j := 0; j < len(network.Nodes[i].Connections())-config.D; j++ {
 					network.RemoveConnection(uint64(i), rand.Uint64()%uint64(len(network.Nodes)))
+					flag = true
 				}
 			}
 
@@ -90,9 +77,14 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 				for j := 0; j < config.D-len(network.Nodes[i].Connections()); j++ {
 					if !network.makeRandomConnection(config.MaxLinkDelay) {
 						j-- // Retry if connection could not be made
+						flag = true
 					}
 				}
 			}
+		}
+
+		if !flag {
+			break // No changes made, exit early
 		}
 	}
 
