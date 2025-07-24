@@ -14,8 +14,8 @@ func main() {
 		DLow:         8,
 		D:            10,
 		DHigh:        12,
-		MaxNodeDelay: 1000,
-		MaxLinkDelay: 100,
+		MaxNodeDelay: 1,
+		MaxLinkDelay: 1,
 	})
 
 	if n == nil {
@@ -26,7 +26,7 @@ func main() {
 
 	n.Nodes[0].Broadcast(1, p2p.BasicPublish)
 
-	time.Sleep(time.Second * 20)
+	time.Sleep(time.Second * 5)
 
 	sum := 0
 	for i := range n.Nodes {

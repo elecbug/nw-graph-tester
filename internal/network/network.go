@@ -50,7 +50,8 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
 	for i := 0; i < config.NodeCount; i++ {
-		nodes[i] = *node.NewNode(p2p.NodeID(i), p2p.Delay(rand.Uint64()%uint64(config.MaxNodeDelay)))
+		delay := p2p.Delay(rand.Uint64() % uint64(config.MaxNodeDelay))
+		nodes[i] = *node.NewNode(p2p.NodeID(i), delay)
 	}
 
 	network := &Network{
