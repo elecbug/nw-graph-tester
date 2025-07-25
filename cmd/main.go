@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/elecbug/p2p-broadcast-tester/internal/network"
+	"github.com/elecbug/p2p-broadcast-tester/internal/node"
 	"github.com/elecbug/p2p-broadcast-tester/internal/p2p"
 )
 
@@ -15,7 +16,7 @@ func main() {
 		D:            10,
 		DHigh:        12,
 		MaxNodeDelay: 100,
-		MaxLinkDelay: 100,
+		MaxLinkDelay: 1,
 	})
 
 	if n == nil {
@@ -33,8 +34,9 @@ func main() {
 		sum += len(n.Nodes[i].ReceiveRoute(1))
 		// n.Nodes[i].PrintRelayState()
 		// fmt.Printf("> Degree - Receving Count = %d\n", len(n.Nodes[i].Connections())-len(n.Nodes[i].ReceiveRoute(1)))
+		json, _ := node.ToJson(&n.Nodes[i])
+		fmt.Println(json)
 	}
 
 	fmt.Printf("Total average duplicates for relay 1: %f\n", float64(sum)/float64(len(n.Nodes)-1)-1)
-	n.PrintPropagationTree(1)
 }

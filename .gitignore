@@ -2,3 +2,6 @@
 out
 
 *.log
+
+venv
+results

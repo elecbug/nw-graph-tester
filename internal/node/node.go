@@ -1,7 +1,9 @@
 package node
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -12,10 +14,44 @@ import (
 type Node struct {
 	id          p2p.NodeID
 	delay       p2p.Delay
-	connections map[*Node]p2p.Delay
-	relayMap    map[p2p.MessageID]time.Time
+	relayMap    map[p2p.MessageID]time.Time    // For tracking relay times
 	receiveMap  map[p2p.MessageID][]p2p.NodeID // For tracking duplicates
+	connections map[*Node]p2p.Delay            // Map of connected nodes and their delays
 	mu          sync.RWMutex
+}
+
+func ToJson(node *Node) (string, error) {
+	nodeM := struct {
+		ID          p2p.NodeID                     `json:"id"`
+		Delay       p2p.Delay                      `json:"delay"`
+		Connections map[p2p.NodeID]p2p.Delay       `json:"connections"`
+		RelayMap    map[p2p.MessageID]time.Time    `json:"relay_map"`
+		ReceiveMap  map[p2p.MessageID][]p2p.NodeID `json:"receive_map"`
+	}{
+		ID:          node.id,
+		Delay:       node.delay,
+		Connections: connectionConv(node.connections),
+		RelayMap:    node.relayMap,
+		ReceiveMap:  node.receiveMap,
+	}
+
+	data, err := json.Marshal(nodeM)
+	if err != nil {
+		log.Printf("Error serializing node to JSON: %v", err)
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+func connectionConv(connections map[*Node]p2p.Delay) map[p2p.NodeID]p2p.Delay {
+	result := make(map[p2p.NodeID]p2p.Delay)
+
+	for node, delay := range connections {
+		result[node.id] = delay
+	}
+
+	return result
 }
 
 func (n *Node) ID() p2p.NodeID {
