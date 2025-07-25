@@ -7,5 +7,5 @@ type BroadcastType int
 
 const (
 	BasicPublish BroadcastType = iota
-	FloodPublish
+	TikTokPublish
 )

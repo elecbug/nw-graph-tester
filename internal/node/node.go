@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -73,6 +74,29 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				}(conn, delay)
 			}
 		}()
+	case p2p.TikTokPublish:
+		go func() {
+			n.mu.Lock()
+
+			n.relayMap[messageID] = time.Now()
+			n.receiveMap[messageID] = []p2p.NodeID{} // Reset duplicates for this relay
+
+			n.mu.Unlock()
+
+			time.Sleep(time.Duration(n.delay) * time.Millisecond)
+
+			for conn, delay := range n.connections {
+				if n.checkReceiving(messageID, conn) {
+					continue
+				}
+
+				go func(conn *Node, delay p2p.Delay) {
+					time.Sleep(time.Duration(delay) * time.Millisecond)
+
+					conn.relayTTP(messageID, n, 0)
+				}(conn, delay)
+			}
+		}()
 	}
 }
 
@@ -106,6 +130,82 @@ func (n *Node) relay(messageID p2p.MessageID, from *Node) {
 
 				conn.relay(messageID, n)
 			}(conn, delay)
+		}
+	}()
+}
+
+func (n *Node) relayTTP(messageID p2p.MessageID, from *Node, hop int) {
+	go func() {
+		n.mu.Lock()
+
+		if _, ok := n.relayMap[messageID]; ok {
+			n.receiveMap[messageID] = append(n.receiveMap[messageID], from.id) // Track duplicate sender
+			n.mu.Unlock()
+			return
+		} else {
+			n.relayMap[messageID] = time.Now()
+			n.receiveMap[messageID] = []p2p.NodeID{from.id} // Reset duplicates for this relay
+			n.mu.Unlock()
+		}
+
+		time.Sleep(time.Duration(n.delay) * time.Millisecond)
+
+		if hop%2 == 0 {
+			for conn, delay := range n.connections {
+				if conn == from {
+					continue // Skip excluded node
+				}
+
+				if n.checkReceiving(messageID, conn) {
+					continue
+				}
+
+				go func(conn *Node, delay p2p.Delay) {
+					time.Sleep(time.Duration(delay) * time.Millisecond)
+
+					conn.relayTTP(messageID, n, hop+1)
+				}(conn, delay)
+			}
+		} else {
+			randN := rand.Intn(len(n.connections))
+			i := 0
+			send := 0
+
+			// for send < 4-(hop/2) {
+			for send < 3 {
+				flag := false
+
+				for conn, delay := range n.connections {
+					if conn == from {
+						continue // Skip excluded node
+					}
+
+					if n.checkReceiving(messageID, conn) {
+						continue
+					}
+
+					flag = true
+
+					if i == randN {
+						go func(conn *Node, delay p2p.Delay) {
+							time.Sleep(time.Duration(delay) * time.Millisecond)
+
+							conn.relayTTP(messageID, n, hop+1)
+						}(conn, delay)
+
+						i = 0
+						send++
+
+						break
+					} else {
+						i++
+					}
+				}
+
+				if !flag {
+					break // No more connections to send to
+				}
+			}
 		}
 	}()
 }

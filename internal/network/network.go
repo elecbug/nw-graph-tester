@@ -193,7 +193,7 @@ func (n *Network) Print() {
 	}
 }
 
-func (n *Network) PropagationGraph(mid p2p.MessageID) {
+func (n *Network) PrintPropagationGraph(mid p2p.MessageID) {
 	propas := make(map[p2p.NodeID]p2p.NodeID)
 
 	for i := 0; i < len(n.Nodes); i++ {
