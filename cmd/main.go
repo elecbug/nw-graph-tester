@@ -74,6 +74,7 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 		NodeCount:     len(n.Nodes),
 		Broadcast:     broadcastType.String(),
 		Delay:         delay,
+		AvgDegree:     float64(n.AvgDegree()),
 		DuplicateRate: float64(recvCount)/float64(recvTarget-dontRecvCount+1) - 1,
 		ReceivingRate: float64(recvTarget-dontRecvCount+1) / float64(recvTarget),
 	}
@@ -106,6 +107,7 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 type NetworkMetric struct {
 	NodeCount     int     `json:"node_count"`
 	Broadcast     string  `json:"broadcast"`
+	AvgDegree     float64 `json:"avg_degree"`
 	Delay         int     `json:"delay"`
 	DuplicateRate float64 `json:"duplicate_rate"`
 	ReceivingRate float64 `json:"receiving_rate"`

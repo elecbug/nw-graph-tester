@@ -253,3 +253,16 @@ func (n *Network) PrintPropagationTree(mid p2p.MessageID) {
 	fmt.Println("Propagation Tree:")
 	dfs(root, 0)
 }
+
+func (n *Network) AvgDegree() float64 {
+	if len(n.Nodes) == 0 {
+		return 0
+	}
+
+	totalDegree := 0
+	for i := range n.Nodes {
+		totalDegree += len(n.Nodes[i].Connections())
+	}
+
+	return float64(totalDegree) / float64(len(n.Nodes))
+}
