@@ -17,79 +17,22 @@ var mu sync.Mutex
 func main() {
 	for d := 0; d < 10; d++ {
 		dCoef := 1000
+		nCoef := 1000
 		w := sync.WaitGroup{}
 
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
+		for _, p := range p2p.AllBroadcastTypes() {
+			for i := 0; i < 10; i++ {
+				w.Add(1)
+				go func(w *sync.WaitGroup, p p2p.BroadcastType, i, dCoef, nCoef int) {
+					defer w.Done()
 
-				fmt.Printf("Starting BasicPublish iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.BasicPublish, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
+					fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
+					Publish((i+1)*nCoef, p, (d+1)*dCoef)
+					time.Sleep(time.Second * 2)
+				}(&w, p, i, dCoef, nCoef)
+			}
+			w.Wait()
 		}
-		w.Wait()
-
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
-
-				fmt.Printf("Starting WavePublish-3 iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.WavePublish_3, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
-		}
-		w.Wait()
-
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
-
-				fmt.Printf("Starting WavePublish-4 iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.WavePublish_4, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
-		}
-		w.Wait()
-
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
-
-				fmt.Printf("Starting WavePublish-5 iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.WavePublish_5, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
-		}
-		w.Wait()
-
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
-
-				fmt.Printf("Starting WavePublish-6 iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.WavePublish_6, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
-		}
-		w.Wait()
-
-		for i := 0; i < 10; i++ {
-			w.Add(1)
-			go func(w *sync.WaitGroup) {
-				defer w.Done()
-
-				fmt.Printf("Starting WavePublish-7 iteration %d\n", i+1)
-				Publish((i+1)*1000, p2p.WavePublish_7, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
-			}(&w)
-		}
-		w.Wait()
 	}
 
 	time.Sleep(time.Second * 60) // Wait for all goroutines to finish
@@ -98,9 +41,9 @@ func main() {
 func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
 		NodeCount:    nodeCount,
-		DLow:         8,
-		D:            10,
-		DHigh:        12,
+		DLow:         18,
+		D:            20,
+		DHigh:        22,
 		MaxNodeDelay: p2p.Delay(delay),
 		MaxLinkDelay: 1,
 	})
@@ -131,8 +74,8 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 		NodeCount:     len(n.Nodes),
 		Broadcast:     broadcastType.String(),
 		Delay:         delay,
-		DuplicateRate: float64(recvCount)/float64(recvTarget-dontRecvCount) - 1,
-		ReceivingRate: float64(recvTarget-dontRecvCount) / float64(recvTarget),
+		DuplicateRate: float64(recvCount)/float64(recvTarget-dontRecvCount+1) - 1,
+		ReceivingRate: float64(recvTarget-dontRecvCount+1) / float64(recvTarget),
 	}
 
 	jsonData, err := json.Marshal(metric)

@@ -110,30 +110,30 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				}(conn, delay)
 			}
 		}()
-	case p2p.WavePublish_1:
-	case p2p.WavePublish_2:
-	case p2p.WavePublish_3:
-	case p2p.WavePublish_4:
-	case p2p.WavePublish_5:
-	case p2p.WavePublish_6:
-	case p2p.WavePublish_7:
+	case p2p.WavePublish_10, p2p.WavePublish_20, p2p.WavePublish_30,
+		p2p.WavePublish_40, p2p.WavePublish_50, p2p.WavePublish_60, p2p.WavePublish_70,
+		p2p.WavePublish_80, p2p.WavePublish_90:
 
-		var coef int
+		var coef float64
 		switch broadcastType {
-		case p2p.WavePublish_1:
-			coef = 1
-		case p2p.WavePublish_2:
-			coef = 2
-		case p2p.WavePublish_3:
-			coef = 3
-		case p2p.WavePublish_4:
-			coef = 4
-		case p2p.WavePublish_5:
-			coef = 5
-		case p2p.WavePublish_6:
-			coef = 6
-		case p2p.WavePublish_7:
-			coef = 7
+		case p2p.WavePublish_10:
+			coef = 0.1
+		case p2p.WavePublish_20:
+			coef = 0.2
+		case p2p.WavePublish_30:
+			coef = 0.3
+		case p2p.WavePublish_40:
+			coef = 0.4
+		case p2p.WavePublish_50:
+			coef = 0.5
+		case p2p.WavePublish_60:
+			coef = 0.6
+		case p2p.WavePublish_70:
+			coef = 0.7
+		case p2p.WavePublish_80:
+			coef = 0.8
+		case p2p.WavePublish_90:
+			coef = 0.9
 		}
 
 		go func() {
@@ -195,7 +195,7 @@ func (n *Node) relayBasic(messageID p2p.MessageID, from *Node) {
 	}()
 }
 
-func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef int) {
+func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef float64) {
 	go func() {
 		n.mu.Lock()
 
@@ -232,10 +232,17 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef int)
 			i := 0
 			send := 0
 
-			for send < coef {
+			maxSend := max(int(coef*float64(len(n.connections))), 1)
+
+			copiedConnections := make(map[*Node]p2p.Delay, len(n.connections))
+			for conn, delay := range n.connections {
+				copiedConnections[conn] = delay
+			}
+
+			for send < maxSend {
 				flag := false
 
-				for conn, delay := range n.connections {
+				for conn, delay := range copiedConnections {
 					if conn == from {
 						continue // Skip excluded node
 					}
@@ -252,6 +259,8 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef int)
 
 							conn.relayWave(messageID, n, hop+1, coef)
 						}(conn, delay)
+
+						delete(copiedConnections, conn)
 
 						i = 0
 						send++
