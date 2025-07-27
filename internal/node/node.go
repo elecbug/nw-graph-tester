@@ -106,11 +106,11 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				go func(conn *Node, delay p2p.Delay) {
 					time.Sleep(time.Duration(delay) * time.Millisecond)
 
-					conn.relay(messageID, n)
+					conn.relayBasic(messageID, n)
 				}(conn, delay)
 			}
 		}()
-	case p2p.TikTokPublish:
+	case p2p.WavePublish:
 		go func() {
 			n.mu.Lock()
 
@@ -129,14 +129,14 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				go func(conn *Node, delay p2p.Delay) {
 					time.Sleep(time.Duration(delay) * time.Millisecond)
 
-					conn.relayTTP(messageID, n, 0)
+					conn.relayWave(messageID, n, 0)
 				}(conn, delay)
 			}
 		}()
 	}
 }
 
-func (n *Node) relay(messageID p2p.MessageID, from *Node) {
+func (n *Node) relayBasic(messageID p2p.MessageID, from *Node) {
 	go func() {
 		n.mu.Lock()
 
@@ -164,13 +164,13 @@ func (n *Node) relay(messageID p2p.MessageID, from *Node) {
 			go func(conn *Node, delay p2p.Delay) {
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 
-				conn.relay(messageID, n)
+				conn.relayBasic(messageID, n)
 			}(conn, delay)
 		}
 	}()
 }
 
-func (n *Node) relayTTP(messageID p2p.MessageID, from *Node, hop int) {
+func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int) {
 	go func() {
 		n.mu.Lock()
 
@@ -199,7 +199,7 @@ func (n *Node) relayTTP(messageID p2p.MessageID, from *Node, hop int) {
 				go func(conn *Node, delay p2p.Delay) {
 					time.Sleep(time.Duration(delay) * time.Millisecond)
 
-					conn.relayTTP(messageID, n, hop+1)
+					conn.relayWave(messageID, n, hop+1)
 				}(conn, delay)
 			}
 		} else {
@@ -226,7 +226,7 @@ func (n *Node) relayTTP(messageID p2p.MessageID, from *Node, hop int) {
 						go func(conn *Node, delay p2p.Delay) {
 							time.Sleep(time.Duration(delay) * time.Millisecond)
 
-							conn.relayTTP(messageID, n, hop+1)
+							conn.relayWave(messageID, n, hop+1)
 						}(conn, delay)
 
 						i = 0
