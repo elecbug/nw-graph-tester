@@ -110,7 +110,32 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				}(conn, delay)
 			}
 		}()
-	case p2p.WavePublish:
+	case p2p.WavePublish_1:
+	case p2p.WavePublish_2:
+	case p2p.WavePublish_3:
+	case p2p.WavePublish_4:
+	case p2p.WavePublish_5:
+	case p2p.WavePublish_6:
+	case p2p.WavePublish_7:
+
+		var coef int
+		switch broadcastType {
+		case p2p.WavePublish_1:
+			coef = 1
+		case p2p.WavePublish_2:
+			coef = 2
+		case p2p.WavePublish_3:
+			coef = 3
+		case p2p.WavePublish_4:
+			coef = 4
+		case p2p.WavePublish_5:
+			coef = 5
+		case p2p.WavePublish_6:
+			coef = 6
+		case p2p.WavePublish_7:
+			coef = 7
+		}
+
 		go func() {
 			n.mu.Lock()
 
@@ -129,7 +154,7 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				go func(conn *Node, delay p2p.Delay) {
 					time.Sleep(time.Duration(delay) * time.Millisecond)
 
-					conn.relayWave(messageID, n, 0)
+					conn.relayWave(messageID, n, 0, coef)
 				}(conn, delay)
 			}
 		}()
@@ -170,7 +195,7 @@ func (n *Node) relayBasic(messageID p2p.MessageID, from *Node) {
 	}()
 }
 
-func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int) {
+func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef int) {
 	go func() {
 		n.mu.Lock()
 
@@ -199,7 +224,7 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int) {
 				go func(conn *Node, delay p2p.Delay) {
 					time.Sleep(time.Duration(delay) * time.Millisecond)
 
-					conn.relayWave(messageID, n, hop+1)
+					conn.relayWave(messageID, n, hop+1, coef)
 				}(conn, delay)
 			}
 		} else {
@@ -207,8 +232,7 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int) {
 			i := 0
 			send := 0
 
-			// for send < 4-(hop/2) {
-			for send < 3 {
+			for send < coef {
 				flag := false
 
 				for conn, delay := range n.connections {
@@ -226,7 +250,7 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int) {
 						go func(conn *Node, delay p2p.Delay) {
 							time.Sleep(time.Duration(delay) * time.Millisecond)
 
-							conn.relayWave(messageID, n, hop+1)
+							conn.relayWave(messageID, n, hop+1, coef)
 						}(conn, delay)
 
 						i = 0

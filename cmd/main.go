@@ -5,33 +5,103 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/elecbug/p2p-broadcast-tester/internal/network"
 	"github.com/elecbug/p2p-broadcast-tester/internal/p2p"
 )
 
+var mu sync.Mutex
+
 func main() {
-	for i := 0; i < 10; i++ {
-		fmt.Printf("Starting BasicPublish iteration %d\n", i+1)
-		Publish((i+1)*1000, p2p.BasicPublish)
-		time.Sleep(time.Second * 2)
+	for d := 0; d < 10; d++ {
+		dCoef := 1000
+		w := sync.WaitGroup{}
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting BasicPublish iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.BasicPublish, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting WavePublish-3 iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.WavePublish_3, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting WavePublish-4 iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.WavePublish_4, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting WavePublish-5 iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.WavePublish_5, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting WavePublish-6 iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.WavePublish_6, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
+
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup) {
+				defer w.Done()
+
+				fmt.Printf("Starting WavePublish-7 iteration %d\n", i+1)
+				Publish((i+1)*1000, p2p.WavePublish_7, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w)
+		}
+		w.Wait()
 	}
 
-	for i := 0; i < 10; i++ {
-		fmt.Printf("Starting WavePublish iteration %d\n", i+1)
-		Publish((i+1)*1000, p2p.WavePublish)
-		time.Sleep(time.Second * 2)
-	}
+	time.Sleep(time.Second * 60) // Wait for all goroutines to finish
 }
 
-func Publish(nodeCount int, broadcastType p2p.BroadcastType) {
+func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
 		NodeCount:    nodeCount,
 		DLow:         8,
 		D:            10,
 		DHigh:        12,
-		MaxNodeDelay: 1000,
+		MaxNodeDelay: p2p.Delay(delay),
 		MaxLinkDelay: 1,
 	})
 
@@ -56,33 +126,36 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType) {
 	}
 
 	recvTarget := len(n.Nodes) - 1
-	fmt.Printf("duplicate: %f\n", float64(recvCount)/float64(recvTarget)-1)
-	fmt.Printf("Total nodes not receiving relay 1: %f\n", float64(recvTarget-dontRecvCount)/float64(recvTarget))
 
 	metric := NetworkMetric{
 		NodeCount:     len(n.Nodes),
-		Broadcast:     "WavePublish",
-		DuplicateRate: float64(recvCount)/float64(recvTarget) - 1,
+		Broadcast:     broadcastType.String(),
+		Delay:         delay,
+		DuplicateRate: float64(recvCount)/float64(recvTarget-dontRecvCount) - 1,
 		ReceivingRate: float64(recvTarget-dontRecvCount) / float64(recvTarget),
 	}
 
 	jsonData, err := json.Marshal(metric)
+	jsonData = append(jsonData, '\n') // Add newline for better readability
 
 	if err != nil {
 		fmt.Printf("Error serializing network metric: %v\n", err)
 		return
 	}
 
-	file, err := os.OpenFile("network_metric.json", os.O_CREATE|os.O_WRONLY|os.O_APPEND, fs.ModePerm)
+	mu.Lock()
+	defer mu.Unlock()
+
+	file, err := os.OpenFile("results/network_metric.jsonl", os.O_CREATE|os.O_WRONLY|os.O_APPEND, fs.ModePerm)
 
 	if err != nil {
-		fmt.Printf("Error opening network_metric.json: %v\n", err)
+		fmt.Printf("Error opening network_metric.jsonl: %v\n", err)
 		return
 	}
 	defer file.Close()
 
 	if _, err := file.Write(jsonData); err != nil {
-		fmt.Printf("Error writing to network_metric.json: %v\n", err)
+		fmt.Printf("Error writing to network_metric.jsonl: %v\n", err)
 		return
 	}
 }
@@ -90,6 +163,7 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType) {
 type NetworkMetric struct {
 	NodeCount     int     `json:"node_count"`
 	Broadcast     string  `json:"broadcast"`
+	Delay         int     `json:"delay"`
 	DuplicateRate float64 `json:"duplicate_rate"`
 	ReceivingRate float64 `json:"receiving_rate"`
 }
