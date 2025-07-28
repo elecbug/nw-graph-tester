@@ -69,7 +69,7 @@ def create_graphs(avg_metrics, output_dir):
     ax2.set_xticks(range(len(broadcasts)))
     ax2.set_xticklabels(broadcasts, rotation=45, ha='right')
     ax2.grid(axis='y', alpha=0.3)
-    ax2.set_ylim(0.995, 1.001)
+    ax2.set_ylim(0.99, 1.0005)  # Set y-axis limits for better visibility
     
     for i, v in enumerate(receiving_rates):
         ax2.text(i, v + 0.0001, f'{v:.4f}', ha='center', va='bottom', fontsize=8)
@@ -111,8 +111,8 @@ def create_combined_graph(avg_metrics, output_dir):
     bars2 = ax2.bar([x + 0.2 for x in range(len(broadcasts))], receiving_rates, 
                     width=0.4, color=color2, alpha=0.7, label='Receiving Rate')
     ax2.tick_params(axis='y', labelcolor=color2)
-    ax2.set_ylim(0.995, 1.001)
-    
+    ax2.set_ylim(0.99, 1.0005)
+
     for i, v in enumerate(duplicate_rates):
         ax1.text(i - 0.2, v + 0.1, f'{v:.2f}', ha='center', va='bottom', fontsize=8)
     

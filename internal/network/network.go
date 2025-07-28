@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 
 	"github.com/elecbug/p2p-broadcast-tester/internal/node"
 	"github.com/elecbug/p2p-broadcast-tester/internal/p2p"
@@ -26,15 +25,13 @@ type NetworkConfig struct {
 
 func GenerateRandomNetwork(config NetworkConfig) *Network {
 	nodes := make([]node.Node, config.NodeCount)
-	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
 	for i := 0; i < config.NodeCount; i++ {
 		nodes[i] = *node.NewNode(p2p.NodeID(i), p2p.Delay(rand.Uint64()%uint64(config.MaxNodeDelay)))
 	}
 
 	network := &Network{
-		Nodes:      nodes,
-		delayLog10: delayLog10,
+		Nodes: nodes,
 	}
 
 	for i := 0; i < config.EdgeCount; i++ {
@@ -48,7 +45,6 @@ func GenerateRandomNetwork(config NetworkConfig) *Network {
 
 func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	nodes := make([]node.Node, config.NodeCount)
-	delayLog10 := getDelayLog10(max(config.MaxNodeDelay, config.MaxLinkDelay))
 
 	for i := 0; i < config.NodeCount; i++ {
 		delay := p2p.Delay(rand.Uint64() % uint64(config.MaxNodeDelay))
@@ -56,8 +52,7 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	}
 
 	network := &Network{
-		Nodes:      nodes,
-		delayLog10: delayLog10,
+		Nodes: nodes,
 	}
 
 	for re := 0; re < config.NodeCount; re++ {
@@ -96,20 +91,6 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	}
 
 	return network
-}
-
-func getDelayLog10(delay p2p.Delay) int64 {
-	if delay <= 0 {
-		return 0
-	}
-
-	log10 := int64(0)
-	for delay > 9 {
-		delay /= 10
-		log10++
-	}
-
-	return log10
 }
 
 func (n *Network) makeRandomConnection(maxLinkDelay p2p.Delay) bool {
@@ -172,86 +153,6 @@ func (n *Network) RemoveConnection(nodeA uint64, nodeB uint64) {
 
 	delete(n.Nodes[nodeA].Connections(), &n.Nodes[nodeB])
 	delete(n.Nodes[nodeB].Connections(), &n.Nodes[nodeA])
-}
-
-func (n *Network) Print() {
-	for i := range n.Nodes {
-		node := &n.Nodes[i]
-
-		connections := "["
-		i := 0
-		for connNode, delay := range node.Connections() {
-			connections += fmt.Sprintf("%d(%dms)", connNode.ID(), delay)
-			if i != len(node.Connections())-1 {
-				connections += ", "
-			}
-			i++
-		}
-		connections += "]"
-
-		fmt.Printf("Node ID: %d, Delay: %d, Connections: %d %s\n", node.ID(), node.Delay(), len(node.Connections()), connections)
-	}
-}
-
-func (n *Network) PrintPropagationGraph(mid p2p.MessageID) {
-	propas := make(map[p2p.NodeID]p2p.NodeID)
-
-	for i := 0; i < len(n.Nodes); i++ {
-		recvs := n.Nodes[i].ReceiveRoute(mid)
-
-		if len(recvs) == 0 {
-			continue // No propagation for this message
-		}
-
-		propas[n.Nodes[i].ID()] = recvs[0]
-	}
-
-	fmt.Println("Propagation Graph:")
-	for sender, receiver := range propas {
-		fmt.Printf("Node %d -> Node %d\n", sender, receiver)
-	}
-}
-
-func (n *Network) PrintPropagationTree(mid p2p.MessageID) {
-	propas := make(map[p2p.NodeID]p2p.NodeID) // child -> parent
-
-	for i := 0; i < len(n.Nodes); i++ {
-		recvs := n.Nodes[i].ReceiveRoute(mid)
-		if len(recvs) == 0 {
-			continue
-		}
-		propas[n.Nodes[i].ID()] = recvs[0]
-	}
-
-	// 1. Build parent -> children map
-	children := make(map[p2p.NodeID][]p2p.NodeID)
-	var root p2p.NodeID
-
-	isChild := make(map[p2p.NodeID]bool)
-	for child, parent := range propas {
-		children[parent] = append(children[parent], child)
-		isChild[child] = true
-	}
-
-	// 2. Find root (who is never a child)
-	for node := range propas {
-		if !isChild[node] {
-			root = node
-			break
-		}
-	}
-
-	// 3. DFS 출력
-	var dfs func(node p2p.NodeID, depth int)
-	dfs = func(node p2p.NodeID, depth int) {
-		fmt.Printf("%sNode %d\n", strings.Repeat("  ", depth), node)
-		for _, child := range children[node] {
-			dfs(child, depth+1)
-		}
-	}
-
-	fmt.Println("Propagation Tree:")
-	dfs(root, 0)
 }
 
 func (n *Network) AvgDegree() float64 {

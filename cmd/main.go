@@ -20,7 +20,19 @@ func main() {
 		nCoef := 1000
 		w := sync.WaitGroup{}
 
-		for _, p := range p2p.AllBroadcastTypes() {
+		for i := 0; i < 10; i++ {
+			w.Add(1)
+			go func(w *sync.WaitGroup, p p2p.BroadcastType, i, dCoef, nCoef int) {
+				defer w.Done()
+
+				fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
+				Publish((i+1)*nCoef, p, (d+1)*dCoef)
+				time.Sleep(time.Second * 2)
+			}(&w, p2p.BroadcastType{Type: p2p.BasicPublish}, i, dCoef, nCoef)
+		}
+		w.Wait()
+
+		for p := 5; p <= 100; p += 5 {
 			for i := 0; i < 10; i++ {
 				w.Add(1)
 				go func(w *sync.WaitGroup, p p2p.BroadcastType, i, dCoef, nCoef int) {
@@ -29,7 +41,7 @@ func main() {
 					fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 					Publish((i+1)*nCoef, p, (d+1)*dCoef)
 					time.Sleep(time.Second * 2)
-				}(&w, p, i, dCoef, nCoef)
+				}(&w, p2p.BroadcastType{Type: p2p.WavePublish, Level: p}, i, dCoef, nCoef)
 			}
 			w.Wait()
 		}

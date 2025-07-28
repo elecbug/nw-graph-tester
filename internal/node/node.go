@@ -86,7 +86,7 @@ func NewNode(id p2p.NodeID, delay p2p.Delay) *Node {
 
 func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastType) {
 
-	switch broadcastType {
+	switch broadcastType.Type {
 	case p2p.BasicPublish:
 		go func() {
 			n.mu.Lock()
@@ -110,31 +110,9 @@ func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastTyp
 				}(conn, delay)
 			}
 		}()
-	case p2p.WavePublish_10, p2p.WavePublish_20, p2p.WavePublish_30,
-		p2p.WavePublish_40, p2p.WavePublish_50, p2p.WavePublish_60, p2p.WavePublish_70,
-		p2p.WavePublish_80, p2p.WavePublish_90:
+	case p2p.WavePublish:
 
-		var coef float64
-		switch broadcastType {
-		case p2p.WavePublish_10:
-			coef = 0.1
-		case p2p.WavePublish_20:
-			coef = 0.2
-		case p2p.WavePublish_30:
-			coef = 0.3
-		case p2p.WavePublish_40:
-			coef = 0.4
-		case p2p.WavePublish_50:
-			coef = 0.5
-		case p2p.WavePublish_60:
-			coef = 0.6
-		case p2p.WavePublish_70:
-			coef = 0.7
-		case p2p.WavePublish_80:
-			coef = 0.8
-		case p2p.WavePublish_90:
-			coef = 0.9
-		}
+		coef := float64(broadcastType.Level) / 100.0
 
 		go func() {
 			n.mu.Lock()
