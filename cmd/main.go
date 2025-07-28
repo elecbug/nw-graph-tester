@@ -27,7 +27,7 @@ func main() {
 
 				fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 				Publish((i+1)*nCoef, p, (d+1)*dCoef)
-				time.Sleep(time.Second * 2)
+				time.Sleep(time.Second * time.Duration(2*(d+1)))
 			}(&w, p2p.BroadcastType{Type: p2p.BasicPublish}, i, dCoef, nCoef)
 		}
 		w.Wait()
@@ -40,7 +40,7 @@ func main() {
 
 					fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 					Publish((i+1)*nCoef, p, (d+1)*dCoef)
-					time.Sleep(time.Second * 2)
+					time.Sleep(time.Second * time.Duration(2*(d+1)))
 				}(&w, p2p.BroadcastType{Type: p2p.WavePublish, Level: p}, i, dCoef, nCoef)
 			}
 			w.Wait()
