@@ -124,8 +124,9 @@ def create_delay_specific_graphs(delay_avg_metrics, output_dir):
     
     # Create color map for different delays
     colors = plt.cm.tab10(np.linspace(0, 1, len(delays)))
-    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h']
-    
+    # markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h']
+    markers = ['o']
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
     
     # Duplicate Count Graph

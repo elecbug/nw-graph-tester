@@ -47,7 +47,7 @@ func main() {
 		}
 	}
 
-	time.Sleep(time.Second * 60) // Wait for all goroutines to finish
+	time.Sleep(time.Second * 10) // Wait for all goroutines to finish
 }
 
 func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
