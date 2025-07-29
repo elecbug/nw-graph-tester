@@ -19,8 +19,8 @@ var mu sync.Mutex
 func main() {
 	// Test with different delay configurations (currently only d=0)
 	for d := 0; d < 1; d++ {
-		dCoef := 100  // Delay coefficient multiplier
-		nCoef := 1000 // Node count coefficient multiplier
+		dCoef := 100   // Delay coefficient multiplier
+		nCoef := 10000 // Node count coefficient multiplier
 		wg := sync.WaitGroup{}
 
 		// Test BasicPublish broadcast method with 10 different network sizes
@@ -33,12 +33,12 @@ func main() {
 				fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 				Publish((i+1)*nCoef, p, (d+1)*dCoef)
 			}(&wg, p2p.BroadcastType{Type: p2p.BasicPublish}, i, dCoef, nCoef)
+
+			wg.Wait()
 		}
 
-		wg.Wait()
-
 		// Test WavePublish broadcast method with different levels (5, 10, 15, ..., 100)
-		for p := 5; p <= 100; p += 5 {
+		for p := 1; p <= 100; p += 3 {
 			for i := 0; i < 10; i++ {
 				wg.Add(1)
 
@@ -48,9 +48,9 @@ func main() {
 					fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 					Publish((i+1)*nCoef, p, (d+1)*dCoef)
 				}(&wg, p2p.BroadcastType{Type: p2p.WavePublish, Level: p}, i, dCoef, nCoef)
-			}
 
-			wg.Wait()
+				wg.Wait()
+			}
 		}
 	}
 
