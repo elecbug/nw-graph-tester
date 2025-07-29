@@ -101,7 +101,7 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 	recvTarget := len(n.Nodes) - 1 // Expected number of receivers (excluding sender)
 
 	// Create network performance metric
-	metric := NetworkMetric{
+	metric := p2p.NetworkMetric{
 		NodeCount:     len(n.Nodes),
 		Broadcast:     broadcastType.String(),
 		Delay:         delay,

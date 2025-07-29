@@ -1,4 +1,4 @@
-package main
+package p2p
 
 type NetworkMetric struct {
 	NodeCount     int     `json:"node_count"`
