@@ -15,8 +15,8 @@ import (
 var mu sync.Mutex
 
 func main() {
-	for d := 0; d < 10; d++ {
-		dCoef := 1000
+	for d := 0; d < 50; d++ {
+		dCoef := 100
 		nCoef := 1000
 		w := sync.WaitGroup{}
 
@@ -27,7 +27,6 @@ func main() {
 
 				fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 				Publish((i+1)*nCoef, p, (d+1)*dCoef)
-				time.Sleep(time.Second * time.Duration(2*(d+1)))
 			}(&w, p2p.BroadcastType{Type: p2p.BasicPublish}, i, dCoef, nCoef)
 		}
 		w.Wait()
@@ -40,7 +39,6 @@ func main() {
 
 					fmt.Printf("Starting %s iteration %d\n", p.String(), i+1)
 					Publish((i+1)*nCoef, p, (d+1)*dCoef)
-					time.Sleep(time.Second * time.Duration(2*(d+1)))
 				}(&w, p2p.BroadcastType{Type: p2p.WavePublish, Level: p}, i, dCoef, nCoef)
 			}
 			w.Wait()
@@ -66,9 +64,12 @@ func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
 	}
 	// n.Print()
 
-	n.Nodes[0].Broadcast(1, broadcastType)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 
-	time.Sleep(time.Second * 10)
+	n.Nodes[0].Broadcast(1, broadcastType, wg)
+
+	wg.Wait()
 
 	recvCount := 0
 	dontRecvCount := 0

@@ -84,77 +84,117 @@ func NewNode(id p2p.NodeID, delay p2p.Delay) *Node {
 	}
 }
 
-func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastType) {
+func (n *Node) Broadcast(messageID p2p.MessageID, broadcastType p2p.BroadcastType, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	switch broadcastType.Type {
 	case p2p.BasicPublish:
-		go func() {
-			n.mu.Lock()
-
-			n.relayMap[messageID] = time.Now()
-			n.receiveMap[messageID] = []p2p.NodeID{} // Reset duplicates for this relay
-
-			n.mu.Unlock()
-
-			time.Sleep(time.Duration(n.delay) * time.Millisecond)
-
-			for conn, delay := range n.connections {
-				if n.checkReceiving(messageID, conn) {
-					continue
-				}
-
-				go func(conn *Node, delay p2p.Delay) {
-					time.Sleep(time.Duration(delay) * time.Millisecond)
-
-					conn.relayBasic(messageID, n)
-				}(conn, delay)
-			}
-		}()
-	case p2p.WavePublish:
-
-		coef := float64(broadcastType.Level) / 100.0
-
-		go func() {
-			n.mu.Lock()
-
-			n.relayMap[messageID] = time.Now()
-			n.receiveMap[messageID] = []p2p.NodeID{} // Reset duplicates for this relay
-
-			n.mu.Unlock()
-
-			time.Sleep(time.Duration(n.delay) * time.Millisecond)
-
-			for conn, delay := range n.connections {
-				if n.checkReceiving(messageID, conn) {
-					continue
-				}
-
-				go func(conn *Node, delay p2p.Delay) {
-					time.Sleep(time.Duration(delay) * time.Millisecond)
-
-					conn.relayWave(messageID, n, 0, coef)
-				}(conn, delay)
-			}
-		}()
-	}
-}
-
-func (n *Node) relayBasic(messageID p2p.MessageID, from *Node) {
-	go func() {
 		n.mu.Lock()
 
-		if _, ok := n.relayMap[messageID]; ok {
-			n.receiveMap[messageID] = append(n.receiveMap[messageID], from.id) // Track duplicate sender
-			n.mu.Unlock()
-			return
-		} else {
-			n.relayMap[messageID] = time.Now()
-			n.receiveMap[messageID] = []p2p.NodeID{from.id} // Reset duplicates for this relay
-			n.mu.Unlock()
-		}
+		n.relayMap[messageID] = time.Now()
+		n.receiveMap[messageID] = []p2p.NodeID{} // Reset duplicates for this relay
+
+		n.mu.Unlock()
 
 		time.Sleep(time.Duration(n.delay) * time.Millisecond)
 
+		for conn, delay := range n.connections {
+			if n.checkReceiving(messageID, conn) {
+				continue
+			}
+
+			wg.Add(1)
+
+			go func(conn *Node, delay p2p.Delay) {
+				defer wg.Done()
+
+				time.Sleep(time.Duration(delay) * time.Millisecond)
+
+				conn.relayBasic(messageID, n, wg)
+			}(conn, delay)
+		}
+	case p2p.WavePublish:
+		coef := float64(broadcastType.Level) / 100.0
+
+		n.mu.Lock()
+
+		n.relayMap[messageID] = time.Now()
+		n.receiveMap[messageID] = []p2p.NodeID{} // Reset duplicates for this relay
+
+		n.mu.Unlock()
+
+		time.Sleep(time.Duration(n.delay) * time.Millisecond)
+
+		for conn, delay := range n.connections {
+			if n.checkReceiving(messageID, conn) {
+				continue
+			}
+
+			wg.Add(1)
+
+			go func(conn *Node, delay p2p.Delay) {
+				defer wg.Done()
+
+				time.Sleep(time.Duration(delay) * time.Millisecond)
+
+				conn.relayWave(messageID, n, 0, coef, wg)
+			}(conn, delay)
+		}
+	}
+}
+
+func (n *Node) relayBasic(messageID p2p.MessageID, from *Node, wg *sync.WaitGroup) {
+	n.mu.Lock()
+
+	if _, ok := n.relayMap[messageID]; ok {
+		n.receiveMap[messageID] = append(n.receiveMap[messageID], from.id) // Track duplicate sender
+		n.mu.Unlock()
+		return
+	} else {
+		n.relayMap[messageID] = time.Now()
+		n.receiveMap[messageID] = []p2p.NodeID{from.id} // Reset duplicates for this relay
+		n.mu.Unlock()
+	}
+
+	time.Sleep(time.Duration(n.delay) * time.Millisecond)
+
+	for conn, delay := range n.connections {
+		if conn == from {
+			continue // Skip excluded node
+		}
+
+		if n.checkReceiving(messageID, conn) {
+			continue
+		}
+
+		wg.Add(1)
+
+		go func(conn *Node, delay p2p.Delay) {
+			defer wg.Done()
+
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+
+			conn.relayBasic(messageID, n, wg)
+		}(conn, delay)
+	}
+}
+
+func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef float64, wg *sync.WaitGroup) {
+	n.mu.Lock()
+
+	if _, ok := n.relayMap[messageID]; ok {
+		n.receiveMap[messageID] = append(n.receiveMap[messageID], from.id) // Track duplicate sender
+		n.mu.Unlock()
+		return
+	} else {
+		n.relayMap[messageID] = time.Now()
+		n.receiveMap[messageID] = []p2p.NodeID{from.id} // Reset duplicates for this relay
+		n.mu.Unlock()
+	}
+
+	time.Sleep(time.Duration(n.delay) * time.Millisecond)
+
+	if hop%2 == 0 {
 		for conn, delay := range n.connections {
 			if conn == from {
 				continue // Skip excluded node
@@ -164,33 +204,32 @@ func (n *Node) relayBasic(messageID p2p.MessageID, from *Node) {
 				continue
 			}
 
+			wg.Add(1)
+
 			go func(conn *Node, delay p2p.Delay) {
+				defer wg.Done()
+
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 
-				conn.relayBasic(messageID, n)
+				conn.relayWave(messageID, n, hop+1, coef, wg)
 			}(conn, delay)
 		}
-	}()
-}
+	} else {
+		randN := rand.Intn(len(n.connections))
+		i := 0
+		send := 0
 
-func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef float64) {
-	go func() {
-		n.mu.Lock()
+		maxSend := max(int(coef*float64(len(n.connections))), 1)
 
-		if _, ok := n.relayMap[messageID]; ok {
-			n.receiveMap[messageID] = append(n.receiveMap[messageID], from.id) // Track duplicate sender
-			n.mu.Unlock()
-			return
-		} else {
-			n.relayMap[messageID] = time.Now()
-			n.receiveMap[messageID] = []p2p.NodeID{from.id} // Reset duplicates for this relay
-			n.mu.Unlock()
+		copiedConnections := make(map[*Node]p2p.Delay, len(n.connections))
+		for conn, delay := range n.connections {
+			copiedConnections[conn] = delay
 		}
 
-		time.Sleep(time.Duration(n.delay) * time.Millisecond)
+		for send < maxSend {
+			flag := false
 
-		if hop%2 == 0 {
-			for conn, delay := range n.connections {
+			for conn, delay := range copiedConnections {
 				if conn == from {
 					continue // Skip excluded node
 				}
@@ -199,62 +238,35 @@ func (n *Node) relayWave(messageID p2p.MessageID, from *Node, hop int, coef floa
 					continue
 				}
 
-				go func(conn *Node, delay p2p.Delay) {
-					time.Sleep(time.Duration(delay) * time.Millisecond)
+				flag = true
 
-					conn.relayWave(messageID, n, hop+1, coef)
-				}(conn, delay)
-			}
-		} else {
-			randN := rand.Intn(len(n.connections))
-			i := 0
-			send := 0
+				if i == randN {
+					wg.Add(1)
 
-			maxSend := max(int(coef*float64(len(n.connections))), 1)
+					go func(conn *Node, delay p2p.Delay) {
+						defer wg.Done()
 
-			copiedConnections := make(map[*Node]p2p.Delay, len(n.connections))
-			for conn, delay := range n.connections {
-				copiedConnections[conn] = delay
-			}
+						time.Sleep(time.Duration(delay) * time.Millisecond)
 
-			for send < maxSend {
-				flag := false
+						conn.relayWave(messageID, n, hop+1, coef, wg)
+					}(conn, delay)
 
-				for conn, delay := range copiedConnections {
-					if conn == from {
-						continue // Skip excluded node
-					}
+					delete(copiedConnections, conn)
 
-					if n.checkReceiving(messageID, conn) {
-						continue
-					}
+					i = 0
+					send++
 
-					flag = true
-
-					if i == randN {
-						go func(conn *Node, delay p2p.Delay) {
-							time.Sleep(time.Duration(delay) * time.Millisecond)
-
-							conn.relayWave(messageID, n, hop+1, coef)
-						}(conn, delay)
-
-						delete(copiedConnections, conn)
-
-						i = 0
-						send++
-
-						break
-					} else {
-						i++
-					}
+					break
+				} else {
+					i++
 				}
+			}
 
-				if !flag {
-					break // No more connections to send to
-				}
+			if !flag {
+				break // No more connections to send to
 			}
 		}
-	}()
+	}
 }
 
 func (n *Node) checkReceiving(relayNumber p2p.MessageID, conn *Node) bool {

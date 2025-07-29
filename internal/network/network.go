@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"math/rand"
 
 	"github.com/elecbug/p2p-broadcast-tester/internal/node"
@@ -58,9 +57,9 @@ func GenerateGossipSubNetwork(config NetworkConfig) *Network {
 	for re := 0; re < config.NodeCount; re++ {
 		flag := false
 
-		if re%100 == 0 {
-			fmt.Printf("Generating connections for node %d/%d\n", re, config.NodeCount)
-		}
+		// if re%100 == 0 {
+		// 	fmt.Printf("Generating connections for node %d/%d\n", re, config.NodeCount)
+		// }
 
 		for i := 0; i < config.NodeCount; i++ {
 			if len(network.Nodes[i].Connections()) < config.DLow {

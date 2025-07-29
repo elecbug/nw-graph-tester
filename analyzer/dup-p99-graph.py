@@ -49,17 +49,16 @@ def analyze_broadcast_metrics(data):
     
     return avg_metrics, delay_avg_metrics
 
+def sort_key(broadcast):
+    if broadcast == 'BasicPublish':
+        return 0
+    elif broadcast.startswith('WavePublish-'):
+        return 100-int(broadcast.split('-')[1])
+    return 999
+
 def create_graphs(avg_metrics, delay_avg_metrics, output_dir):
     # Original graphs (overall averages)
     broadcasts = sorted(avg_metrics.keys())
-    
-    def sort_key(broadcast):
-        if broadcast == 'BasicPublish':
-            return 1000
-        elif broadcast.startswith('WavePublish-'):
-            return int(broadcast.split('-')[1])
-        return 999
-    
     broadcasts = sorted(broadcasts, key=sort_key)
     
     duplicate_counts = [avg_metrics[b]['avg_duplicate_count'] for b in broadcasts]
@@ -112,13 +111,6 @@ def create_delay_specific_graphs(delay_avg_metrics, output_dir):
     all_broadcasts = set()
     for delay_data in delay_avg_metrics.values():
         all_broadcasts.update(delay_data.keys())
-    
-    def sort_key(broadcast):
-        if broadcast == 'BasicPublish':
-            return 1000
-        elif broadcast.startswith('WavePublish-'):
-            return int(broadcast.split('-')[1])
-        return 999
     
     broadcasts = sorted(all_broadcasts, key=sort_key)
     
@@ -194,14 +186,6 @@ def create_delay_specific_graphs(delay_avg_metrics, output_dir):
 
 def create_combined_graph(avg_metrics, delay_avg_metrics, output_dir):
     broadcasts = sorted(avg_metrics.keys())
-    
-    def sort_key(broadcast):
-        if broadcast == 'BasicPublish':
-            return 1000
-        elif broadcast.startswith('WavePublish-'):
-            return int(broadcast.split('-')[1])
-        return 999
-    
     broadcasts = sorted(broadcasts, key=sort_key)
     
     duplicate_counts = [avg_metrics[b]['avg_duplicate_count'] for b in broadcasts]
