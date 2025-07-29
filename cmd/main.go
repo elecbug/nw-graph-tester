@@ -15,7 +15,7 @@ import (
 var mu sync.Mutex
 
 func main() {
-	for d := 0; d < 50; d++ {
+	for d := 0; d < 1; d++ {
 		dCoef := 100
 		nCoef := 1000
 		w := sync.WaitGroup{}
@@ -45,15 +45,17 @@ func main() {
 		}
 	}
 
-	time.Sleep(time.Second * 10) // Wait for all goroutines to finish
+	time.Sleep(time.Second * 1) // Wait for all goroutines to finish
 }
 
 func Publish(nodeCount int, broadcastType p2p.BroadcastType, delay int) {
+	meanDegree := 40
+
 	n := network.GenerateGossipSubNetwork(network.NetworkConfig{
 		NodeCount:    nodeCount,
-		DLow:         18,
-		D:            20,
-		DHigh:        22,
+		DLow:         meanDegree - 2,
+		D:            meanDegree,
+		DHigh:        meanDegree + 2,
 		MaxNodeDelay: p2p.Delay(delay),
 		MaxLinkDelay: 1,
 	})
