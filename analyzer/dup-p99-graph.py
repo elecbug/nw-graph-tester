@@ -51,7 +51,7 @@ def analyze_broadcast_metrics(data):
 
 def sort_key(broadcast):
     if broadcast == 'BasicPublish':
-        return 0
+        return -1
     elif broadcast.startswith('WavePublish-'):
         return 100-int(broadcast.split('-')[1])
     return 999
