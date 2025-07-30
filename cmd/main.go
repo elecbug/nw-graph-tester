@@ -19,8 +19,8 @@ var mu sync.Mutex
 func main() {
 	// Test with different delay configurations (currently only d=0)
 	for d := 0; d < 1; d++ {
-		dCoef := 100   // Delay coefficient multiplier
-		nCoef := 10000 // Node count coefficient multiplier
+		dCoef := 100  // Delay coefficient multiplier
+		nCoef := 5000 // Node count coefficient multiplier
 		wg := sync.WaitGroup{}
 
 		// Test BasicPublish broadcast method with 10 different network sizes
